@@ -1,5 +1,9 @@
 <?php
 
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\NullLogger;
+
 /**
  * Simple Omnisend API v3 wrapper
  * Omnisend API v3 documentation: https://api-docs.omnisend.com/
@@ -9,8 +13,10 @@
  * @version 1.2
  */
 
-class Omnisend
+class Omnisend implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     private $apiKey;
     private $apiUrl = 'https://api.omnisend.com/v3/';
     private $timeout;
@@ -19,7 +25,7 @@ class Omnisend
     private $lastError = array();
     private $useCurl = true;
     private $version = "1.2";
-
+    
     public function __construct($apiKey, $options = array())
     {
         if (!function_exists('curl_init') || !function_exists('curl_setopt')) {
@@ -31,6 +37,7 @@ class Omnisend
         }
         $this->apiKey = $apiKey;
         $this->timeout = self::getTimeout();
+        $this->logger = new NullLogger;
 
         if (strpos($this->apiKey, '-') === false) {
             throw new \Exception("Invalid Omnisend API key.");
@@ -275,8 +282,14 @@ class Omnisend
                 $err = error_get_last();
                 $error = $err['message'];
             }
-
         }
+
+        $this->logger->debug('Omnisend api call: ' . $link, [
+            'post' => $data_string,
+            'error' => $error,
+            'status' => $status,
+            'response' => $response,
+        ]);
 
         if (!empty($error)) {
             $this->lastError = array(
